@@ -12,19 +12,26 @@ namespace _391CollegeRegSystem
 {
     public partial class CourseRegistration : Form
     {
-        public CourseRegistration()
+        /*  For Connection String:
+            Copy and paste this line but replace server/dbname with your info,
+            and then just comment mine out... that way  whenever we pull we all dont 
+            have to manually re-input our server names. Just uncomment yours to use, leave everyone elses commented out. 
+        */
+        private const string ConnectionString = "Server = DESKTOP-NAMNLUT; Database = CollegeReg391; Trusted_Connection = yes;";
+
+        // pass sid and last name from login screen
+        private int studentID;
+        private string lastName;
+        public CourseRegistration(int studentID, string lastName)
         {
             InitializeComponent();
+
+            this.studentID = studentID;
+            this.lastName = lastName;
         }
 
-        private void textBox1_TextChanged(object sender, EventArgs e)
-        {
+  
 
-        }
-
-        private void button2_Click(object sender, EventArgs e)
-        {
-
-        }
+      
     }
 }

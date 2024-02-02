@@ -76,7 +76,6 @@
             this.search_txtBox.Name = "search_txtBox";
             this.search_txtBox.Size = new System.Drawing.Size(164, 20);
             this.search_txtBox.TabIndex = 0;
-            this.search_txtBox.TextChanged += new System.EventHandler(this.textBox1_TextChanged);
             // 
             // courses_gridView
             // 
@@ -197,7 +196,6 @@
             this.search_button.TabIndex = 4;
             this.search_button.Text = "Search";
             this.search_button.UseVisualStyleBackColor = true;
-            this.search_button.Click += new System.EventHandler(this.button2_Click);
             // 
             // title_cart
             // 
