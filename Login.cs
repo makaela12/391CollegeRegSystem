@@ -18,7 +18,7 @@ namespace _391CollegeRegSystem
             and then just comment mine out... that way  whenever we pull we all dont 
             have to manually re-input our server names. Just uncomment yours to use, leave everyone elses commented out. 
         */
-        private const string ConnectionString = "Server = DESKTOP-NAMNLUT; Database = CollegeReg391; Trusted_Connection = yes;"; 
+        private const string ConnectionString = "Server = KIPP-LAPTOP; Database = CourseRegistration; Trusted_Connection = yes;"; 
         public Login()
         {
             InitializeComponent();
