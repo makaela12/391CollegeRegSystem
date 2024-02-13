@@ -6,8 +6,10 @@ using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
 
 namespace _391CollegeRegSystem
 {
@@ -34,9 +36,12 @@ namespace _391CollegeRegSystem
 
 
             this.AutoScroll = true;
+            LoadEnrolledCourses();
+            LoadCart();
+
         }
 
-        private const string ConnectionString = "Server=yourServerName; Database=CourseRegistration; Integrated Security=True;";
+        private const string ConnectionString = "Server=localhost; Database=CourseRegistration; Integrated Security=True;";
 
 
 
@@ -52,7 +57,7 @@ namespace _391CollegeRegSystem
         
         
         
-        // this is for the search button functionality 
+        // this is for the search button functionality -- FIXED (ayub)
         
         private void search_button_Click(object sender, EventArgs e)
         {
@@ -74,50 +79,19 @@ namespace _391CollegeRegSystem
                     connection.Open();
 
 
-                    // Need to modify this so we are not using query strings , need to use materialized view
-                    string sql = @"
-SELECT 
-    c.course_id,
-    s.sec_ID,
-    s.semester,
-    s.year,
-    i.name AS Instructor,
-    ts.day,
-    ts.start_time,
-    ts.end_time,
-    cr.capacity,
-    p.prereq_id AS pre_req
-FROM 
-    Course c
-JOIN 
-    Department d ON c.dept_name = d.dept_name
-JOIN 
-    Section s ON c.course_id = s.course_ID
-JOIN 
-    Instructor i ON i.dept_name = d.dept_name
-JOIN 
-    Teaches t ON t.course_ID = c.course_id AND t.sec_ID = s.sec_ID AND t.year = s.year AND t.semester = s.semester
-JOIN 
-    Time_Slot ts ON s.time_slotID = ts.tsID
-LEFT JOIN
-    Classroom cr ON s.building = cr.building AND s.room_no = cr.room_number
-LEFT JOIN 
-    Prereq p ON p.course_id = c.course_id
-WHERE 
-    s.semester = @Term AND c.course_id LIKE @CoursePrefix + '%';";
-
-                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    using (SqlCommand command = new SqlCommand("spSearchClass", connection))
                     {
                         // Prevent SQL injection by using parameters
-                        command.Parameters.AddWithValue("@Term", selectedTerm);  // the term selected
-                        command.Parameters.AddWithValue("@CoursePrefix", coursePrefix + '%'); // Append '%' to allow for prefix searching, responsible for the Course selected
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@sem", selectedTerm);  // the term selected
+                        command.Parameters.AddWithValue("@CoursePrefix", coursePrefix); // Append '%' to allow for prefix searching, responsible for the Course selected
 
                         // Execute the query and load the results into a DataTable
                         DataTable dt = new DataTable();
                         using (SqlDataAdapter adapter = new SqlDataAdapter(command))
                         {
                             adapter.Fill(dt);
-                            MessageBox.Show($"Results Found: {dt.Rows.Count}"); // Display the number of rows found in a pop up (can be removed later)
+                            //MessageBox.Show($"Results Found: {dt.Rows.Count}"); // Display the number of rows found in a pop up (can be removed later)
                         }
 
                         // Check for data before setting the DataSource
@@ -154,18 +128,38 @@ WHERE
 
         private bool CheckPrerequisites(string courseID)
         {
+            int count;
             using (SqlConnection connection = new SqlConnection(ConnectionString))
             {
                 connection.Open();
-                string sql = @"SELECT COUNT(*) FROM Prereq WHERE course_id = @CourseID;";
-                using (SqlCommand command = new SqlCommand(sql, connection))
+                //string sql = @"SELECT COUNT(*) FROM Prereq WHERE course_id = @CourseID;";
+                using (SqlCommand command = new SqlCommand("spCheckIfClassHasAPrereq", connection))
                 {
+                    command.CommandType = CommandType.StoredProcedure;
                     command.Parameters.AddWithValue("@CourseID", courseID);
-                    int count = Convert.ToInt32(command.ExecuteScalar());
-                    return count == 0; // Returns true if there are no prerequisites
+                    count = Convert.ToInt32(command.ExecuteScalar());
+
+                    //return count == 0; // Returns true if there are no prerequisites
+                }
+                if (count >= 1)
+                {
+                    using (SqlCommand command = new SqlCommand("spCheckPrereqInTakes", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@CourseID", courseID);
+                        command.Parameters.AddWithValue("@SID", studentID);
+                        count = Convert.ToInt32(command.ExecuteScalar());
+                        return count == 1;
+                        //return count == 0; // Returns true if there are no prerequisites
+                    }
+                }
+                else
+                {
+                    return count == 0;
                 }
             }
         }
+        
 
 
         // This is the addcourse to cart fuctionality
@@ -224,11 +218,20 @@ WHERE
                 // Check prerequisites using helper function above
                 if (CheckPrerequisites(courseID))
                 {
-                    // Add to Cart using the helper function above aswell
-                    AddCourseToCart(studentID, courseID, secID, semester, year); 
+                    if (CheckCourseCapacity(courseID, secID, semester, year))
+                    {
+                        // Add to Cart using the helper function above aswell
+                        AddCourseToCart(studentID, courseID, secID, semester, year);
 
-                    // Refresh Cart View using helper function
-                    LoadCart();
+                        // Refresh Cart View using helper function
+                        LoadCart();
+                    }
+                    else
+                    {
+                        MessageBox.Show("No Seats Available");
+
+                    }
+
                 }
                 else
                 {
@@ -306,8 +309,9 @@ LEFT JOIN dbo.Takes t ON s.course_ID = t.course_ID AND s.sec_ID = t.sec_ID AND s
 WHERE s.course_ID = @CourseID AND s.sec_ID = @SecID AND s.semester = @Semester AND s.year = @Year
 GROUP BY cr.capacity";
 
-                using (SqlCommand command = new SqlCommand(sql, connection))
+                using (SqlCommand command = new SqlCommand("spCheckSectionAvailableSeats", connection))
                 {
+                    command.CommandType = CommandType.StoredProcedure;
                     command.Parameters.AddWithValue("@CourseID", courseID);
                     command.Parameters.AddWithValue("@SecID", secID);
                     command.Parameters.AddWithValue("@Semester", semester);
@@ -339,21 +343,26 @@ GROUP BY cr.capacity";
                 try
                 {
                     connection.Open();
-                    string sql = @"
-INSERT INTO Takes (SID, course_ID, sec_ID, semester, year, grade) 
-VALUES (@SID, @CourseID, @SecID, @Semester, @Year, NULL);"; // Assuming grade is NULL initially
 
-                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    string SIDString = studentID.ToString();
+                    string yearString = year.ToString();
+                    string storedProcedureName = "spEnrollStudent";
+                    //string sqlQuery = $"EXEC {storedProcedureName} @SID, @CourseID, @SecID, @Semester, @Year";
+
+                    using (SqlCommand command = new SqlCommand(storedProcedureName, connection))
                     {
-                        command.Parameters.AddWithValue("@SID", studentID);
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@SID", SIDString);
                         command.Parameters.AddWithValue("@CourseID", courseID);
                         command.Parameters.AddWithValue("@SecID", secID);
                         command.Parameters.AddWithValue("@Semester", semester);
-                        command.Parameters.AddWithValue("@Year", year);
+                        command.Parameters.AddWithValue("@Year", yearString);
 
                         command.ExecuteNonQuery();
                         MessageBox.Show("Successfully enrolled in course.");
                     }
+                    
+
                 }
                 catch (Exception ex)
                 {
@@ -362,45 +371,7 @@ VALUES (@SID, @CourseID, @SecID, @Semester, @Year, NULL);"; // Assuming grade is
             }
         }
 
-
-        // remove courses from cart is called so when we add to takes, it is also removed in cart  
-        private void RemoveCourseFromCart(int studentID, string courseID, string secID, string semester, int year)
-        {
-            using (SqlConnection connection = new SqlConnection(ConnectionString))
-            {
-                try
-                {
-                    connection.Open();
-                    string sql = @"
-DELETE FROM Cart 
-WHERE SID = @SID AND CourseID = @CourseID AND SecID = @SecID AND Sem = @Semester AND Year = @Year;";
-
-                    using (SqlCommand command = new SqlCommand(sql, connection))
-                    {
-                        command.Parameters.AddWithValue("@SID", studentID);
-                        command.Parameters.AddWithValue("@CourseID", courseID);
-                        command.Parameters.AddWithValue("@SecID", secID);
-                        command.Parameters.AddWithValue("@Semester", semester);
-                        command.Parameters.AddWithValue("@Year", year);
-
-                        int rowsAffected = command.ExecuteNonQuery();
-                        if (rowsAffected > 0)
-                        {
-                            MessageBox.Show("Course removed from cart.");
-                        }
-                        else
-                        {
-                            MessageBox.Show("Course was not found in cart or failed to remove.");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error removing course from cart: {ex.Message}");
-                }
-            }
-        }
-
+  
 
 
         // Project the enrolled courses in the enrolledView 
@@ -442,8 +413,8 @@ WHERE SID = @SID AND CourseID = @CourseID AND SecID = @SecID AND Sem = @Semester
                     // Directly add the course to Takes without checking capacity for now.. 
                     AddCourseToTakes(studentID, courseID, secID, semester, year);
 
-                    // Remove the course from Cart
-                    RemoveCourseFromCart(studentID, courseID, secID, semester, year);
+                    // Remove the course from Cart took this out (ayub)
+                    //RemoveCourseFromCart(studentID, courseID, secID, semester, year);
                 }
 
                 // Refresh Cart and Enrolled Courses Views
