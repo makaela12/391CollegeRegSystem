@@ -168,9 +168,10 @@ namespace _391CollegeRegSystem
             using (SqlConnection connection = new SqlConnection(ConnectionString))
             {
                 connection.Open();
-                string sql = @"INSERT INTO Cart (SID, CourseID, SecID, Sem, Year) VALUES (@SID, @CourseID, @SecID, @Sem, @Year);"; // insert the selected to the table
-                using (SqlCommand command = new SqlCommand(sql, connection))
+                //string sql = @"INSERT INTO Cart (SID, CourseID, SecID, Sem, Year) VALUES (@SID, @CourseID, @SecID, @Sem, @Year);"; // insert the selected to the table
+                using (SqlCommand command = new SqlCommand("AddCourseToCart", connection))
                 {
+                    command.CommandType = CommandType.StoredProcedure;
                     command.Parameters.AddWithValue("@SID", studentID);
                     command.Parameters.AddWithValue("@CourseID", courseID);
                     command.Parameters.AddWithValue("@SecID", secID);
@@ -187,9 +188,10 @@ namespace _391CollegeRegSystem
             using (SqlConnection connection = new SqlConnection(ConnectionString))
             {
                 connection.Open();
-                string sql = @"SELECT CourseID, SecID, Sem, Year FROM Cart WHERE SID = @SID;";
-                using (SqlCommand command = new SqlCommand(sql, connection))
+                //string sql = @"SELECT CourseID, SecID, Sem, Year FROM Cart WHERE SID = @SID;";
+                using (SqlCommand command = new SqlCommand("LoadCart", connection))
                 {
+                    command.CommandType = CommandType.StoredProcedure;
                     command.Parameters.AddWithValue("@SID", studentID);
                     using (SqlDataAdapter adapter = new SqlDataAdapter(command))
                     {
@@ -262,9 +264,10 @@ namespace _391CollegeRegSystem
                 using (SqlConnection connection = new SqlConnection(ConnectionString))
                 {
                     connection.Open();
-                    string sql = @"DELETE FROM Cart WHERE SID = @SID AND CourseID = @CourseID AND SecID = @SecID AND Sem = @Sem AND Year = @Year;";
-                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    //string sql = @"DELETE FROM Cart WHERE SID = @SID AND CourseID = @CourseID AND SecID = @SecID AND Sem = @Sem AND Year = @Year;";
+                    using (SqlCommand command = new SqlCommand("delete_button", connection))
                     {
+                        command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@SID", studentID);
                         command.Parameters.AddWithValue("@CourseID", courseID);
                         command.Parameters.AddWithValue("@SecID", secID);
@@ -301,13 +304,13 @@ namespace _391CollegeRegSystem
             using (SqlConnection connection = new SqlConnection(ConnectionString))
             {
                 connection.Open();
-                string sql = @"
-SELECT cr.capacity - COUNT(*) AS availableSeats
-FROM dbo.Section s
-JOIN dbo.Classroom cr ON s.building = cr.building AND s.room_no = cr.room_number
-LEFT JOIN dbo.Takes t ON s.course_ID = t.course_ID AND s.sec_ID = t.sec_ID AND s.semester = t.semester AND s.year = t.year
-WHERE s.course_ID = @CourseID AND s.sec_ID = @SecID AND s.semester = @Semester AND s.year = @Year
-GROUP BY cr.capacity";
+                //string sql = @"
+//SELECT cr.capacity - COUNT(*) AS availableSeats
+//FROM dbo.Section s
+//JOIN dbo.Classroom cr ON s.building = cr.building AND s.room_no = cr.room_number
+//LEFT JOIN dbo.Takes t ON s.course_ID = t.course_ID AND s.sec_ID = t.sec_ID AND s.semester = t.semester AND s.year = t.year
+//WHERE s.course_ID = @CourseID AND s.sec_ID = @SecID AND s.semester = @Semester AND s.year = @Year
+//GROUP BY cr.capacity";
 
                 using (SqlCommand command = new SqlCommand("spCheckSectionAvailableSeats", connection))
                 {
@@ -355,7 +358,7 @@ GROUP BY cr.capacity";
                         command.Parameters.AddWithValue("@SID", SIDString);
                         command.Parameters.AddWithValue("@CourseID", courseID);
                         command.Parameters.AddWithValue("@SecID", secID);
-                        command.Parameters.AddWithValue("@Semester", semester);
+                        command.Parameters.AddWithValue("@sem", semester);
                         command.Parameters.AddWithValue("@Year", yearString);
 
                         command.ExecuteNonQuery();
@@ -381,9 +384,10 @@ GROUP BY cr.capacity";
             using (SqlConnection connection = new SqlConnection(ConnectionString))
             {
                 connection.Open();
-                string sql = @"SELECT course_ID, sec_ID, semester, year FROM Takes WHERE SID = @SID;";
-                using (SqlCommand command = new SqlCommand(sql, connection))
+                //string sql = @"SELECT course_ID, sec_ID, semester, year FROM Takes WHERE SID = @SID;";
+                using (SqlCommand command = new SqlCommand("LoadEnrolledCourses", connection))
                 {
+                    command.CommandType = CommandType.StoredProcedure;
                     command.Parameters.AddWithValue("@SID", studentID);
                     using (SqlDataAdapter adapter = new SqlDataAdapter(command))
                     {
