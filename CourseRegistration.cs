@@ -217,29 +217,36 @@ namespace _391CollegeRegSystem
                 string semester = selectedRow.Cells["semester"].Value.ToString();
                 int year = Convert.ToInt32(selectedRow.Cells["year"].Value);
 
-                // Check prerequisites using helper function above
+                //Check prerequisites using helper function above
                 if (CheckPrerequisites(courseID))
                 {
-                    if (CheckCourseCapacity(courseID, secID, semester, year))
+                    if (CheckTimeConflict(courseID))
                     {
-                        // Add to Cart using the helper function above aswell
-                        AddCourseToCart(studentID, courseID, secID, semester, year);
+                        if (CheckCourseCapacity(courseID, secID, semester, year))
+                        {
+                            // Add to Cart using the helper function above aswell
+                            AddCourseToCart(studentID, courseID, secID, semester, year);
 
-                        // Refresh Cart View using helper function
-                        LoadCart();
+                            // Refresh Cart View using helper function
+                            LoadCart();
+                        }
+                        else
+                        {
+                            MessageBox.Show("No Seats Available");
+
+                        }
                     }
                     else
                     {
-                        MessageBox.Show("No Seats Available");
-
+                        MessageBox.Show("Cannot enroll due to time conflicts in cart");
                     }
 
-                }
-                else
-                {
-                    MessageBox.Show("Prerequisite not met.");
-                }
             }
+            else
+            {
+                MessageBox.Show("Prerequisite not met.");
+            }
+        }
             // if no row is selected we will let the user know.. 
             else
             {
@@ -304,13 +311,7 @@ namespace _391CollegeRegSystem
             using (SqlConnection connection = new SqlConnection(ConnectionString))
             {
                 connection.Open();
-                //string sql = @"
-//SELECT cr.capacity - COUNT(*) AS availableSeats
-//FROM dbo.Section s
-//JOIN dbo.Classroom cr ON s.building = cr.building AND s.room_no = cr.room_number
-//LEFT JOIN dbo.Takes t ON s.course_ID = t.course_ID AND s.sec_ID = t.sec_ID AND s.semester = t.semester AND s.year = t.year
-//WHERE s.course_ID = @CourseID AND s.sec_ID = @SecID AND s.semester = @Semester AND s.year = @Year
-//GROUP BY cr.capacity";
+
 
                 using (SqlCommand command = new SqlCommand("spCheckSectionAvailableSeats", connection))
                 {
@@ -332,13 +333,30 @@ namespace _391CollegeRegSystem
 
 
 
+        private bool CheckTimeConflict(string courseID)
+        {
+            int result;
+            using (SqlConnection connection = new SqlConnection(ConnectionString))
+            {
+                connection.Open();
+                //string sql = @"SELECT COUNT(*) FROM Prereq WHERE course_id = @CourseID;";
+                using (SqlCommand command = new SqlCommand("spCheckTimeConflict", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.Parameters.AddWithValue("@CourseID", courseID);
+                    result = Convert.ToInt32(command.ExecuteScalar());
+
+                    return result == 0; // Returns true if there are no prerequisites
+                }
+            }
+        }
 
 
 
 
 
         // add courses that is selected to dbo.Takes helper function
-        
+
         private void AddCourseToTakes(int studentID, string courseID, string secID, string semester, int year)
         {
             using (SqlConnection connection = new SqlConnection(ConnectionString))
