@@ -331,10 +331,11 @@ namespace _391CollegeRegSystem
             {
                 connection.Open();
                 //string sql = @"SELECT COUNT(*) FROM Prereq WHERE course_id = @CourseID;";
-                using (SqlCommand command = new SqlCommand("spCheckTimeConflict", connection))
+                using (SqlCommand command = new SqlCommand("CheckTime", connection))
                 {
                     command.CommandType = CommandType.StoredProcedure;
                     command.Parameters.AddWithValue("@CourseID", courseID);
+                    command.Parameters.AddWithValue("@StudentID", studentID);
                     result = Convert.ToInt32(command.ExecuteScalar());
 
                     return result == 0; // Returns true if there are no prerequisites
