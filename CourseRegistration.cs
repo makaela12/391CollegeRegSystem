@@ -221,32 +221,23 @@ namespace _391CollegeRegSystem
                 if (CheckPrerequisites(courseID))
                 {
                     if (CheckTimeConflict(courseID))
-                    {
-                        if (CheckCourseCapacity(courseID, secID, semester, year))
-                        {
-                            // Add to Cart using the helper function above aswell
-                            AddCourseToCart(studentID, courseID, secID, semester, year);
+                    {               
+                        // Add to Cart using the helper function above as well
+                        AddCourseToCart(studentID, courseID, secID, semester, year);
 
-                            // Refresh Cart View using helper function
-                            LoadCart();
-                        }
-                        else
-                        {
-                            MessageBox.Show("No Seats Available");
-
-                        }
+                        // Refresh Cart View using helper function
+                        LoadCart();
                     }
                     else
                     {
                         MessageBox.Show("Cannot enroll due to time conflicts in cart");
                     }
-
+                }
+                else
+                {
+                    MessageBox.Show("Prerequisite not met.");
+                }
             }
-            else
-            {
-                MessageBox.Show("Prerequisite not met.");
-            }
-        }
             // if no row is selected we will let the user know.. 
             else
             {
@@ -352,9 +343,6 @@ namespace _391CollegeRegSystem
         }
 
 
-
-
-
         // add courses that is selected to dbo.Takes helper function
 
         private void AddCourseToTakes(int studentID, string courseID, string secID, string semester, int year)
@@ -417,10 +405,6 @@ namespace _391CollegeRegSystem
             }
         }
 
-
-
-        // Implementation of enroll button by calling the helpers above.. 
-
         private void enroll_button_Click(object sender, EventArgs e)
         {
             if (cart_gridView.SelectedRows.Count > 0)
@@ -432,13 +416,27 @@ namespace _391CollegeRegSystem
                     string semester = selectedRow.Cells["Sem"].Value.ToString();
                     int year = Convert.ToInt32(selectedRow.Cells["Year"].Value);
 
-                    // Directly add the course to Takes without checking capacity for now.. 
-                    AddCourseToTakes(studentID, courseID, secID, semester, year);
+                    // Call the stored procedure to enroll the student in the course
+                    using (SqlConnection connection = new SqlConnection(ConnectionString))
+                    {
+                        using (SqlCommand command = new SqlCommand("enrollCourse", connection))
+                        {
+                            command.CommandType = CommandType.StoredProcedure;
 
-                    // Remove the course from Cart took this out (ayub)
-                    //RemoveCourseFromCart(studentID, courseID, secID, semester, year);
+                            // Add parameters
+                            command.Parameters.AddWithValue("@SID", studentID);
+                            command.Parameters.AddWithValue("@CourseID", courseID);
+                            command.Parameters.AddWithValue("@SecID", secID);
+                            command.Parameters.AddWithValue("@Semester", semester);
+                            command.Parameters.AddWithValue("@Year", year);
+
+                            connection.Open();
+                            string result = (string)command.ExecuteScalar();
+                            MessageBox.Show(result); // Show the result returned by the stored procedure               
+                        }
+                    }
                 }
-
+         
                 // Refresh Cart and Enrolled Courses Views
                 LoadCart();
                 LoadEnrolledCourses();
